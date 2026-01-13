@@ -1,42 +1,72 @@
+import os
+import psycopg2
 import sqlite3
 from datetime import datetime
-from config import DB_PATH
 
 class Database:
-     def __init__(self, db_name=DB_PATH):
-        self.conn = sqlite3.connect(db_name)
-        self.cursor = self.conn.cursor()
+    def __init__(self):
+        # Railway DATABASE_URL ni avtomatik beradi
+        self.db_url = os.getenv("DATABASE_URL")
         self.create_table()
 
+    def get_connection(self):
+        if self.db_url:
+            # Serverda Postgres ishlatamiz
+            return psycopg2.connect(self.db_url)
+        else:
+            # Kompyuterda SQLite ishlatamiz
+            return sqlite3.connect("bot_database.db")
+
     def create_table(self):
-        # Foydalanuvchilar jadvali: ID va qo'shilgan vaqti
-        self.cursor.execute("""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        # Postgres va SQLite uchun mos keladigan SQL
+        query = """
             CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
+                user_id BIGINT PRIMARY KEY,
                 join_date TEXT
             )
-        """)
-        self.conn.commit()
+        """
+        cursor.execute(query)
+        conn.commit()
+        conn.close()
 
     def add_user(self, user_id):
-        # Foydalanuvchi bazada bormi tekshiramiz
-        self.cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-        if not self.cursor.fetchone():
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        # Foydalanuvchi borligini tekshirish
+        cursor.execute("SELECT user_id FROM users WHERE user_id = %s" if self.db_url else "SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+        if not cursor.fetchone():
             now = datetime.now().strftime("%Y-%m-%d")
-            self.cursor.execute("INSERT INTO users (user_id, join_date) VALUES (?, ?)", (user_id, now))
-            self.conn.commit()
+            sql = "INSERT INTO users (user_id, join_date) VALUES (%s, %s)" if self.db_url else "INSERT INTO users (user_id, join_date) VALUES (?, ?)"
+            cursor.execute(sql, (user_id, now))
+            conn.commit()
+        conn.close()
 
     def count_total_users(self):
-        self.cursor.execute("SELECT COUNT(*) FROM users")
-        return self.cursor.fetchone()[0]
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM users")
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
 
     def count_today_users(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
         today = datetime.now().strftime("%Y-%m-%d")
-        self.cursor.execute("SELECT COUNT(*) FROM users WHERE join_date = ?", (today,))
-        return self.cursor.fetchone()[0]
+        sql = "SELECT COUNT(*) FROM users WHERE join_date = %s" if self.db_url else "SELECT COUNT(*) FROM users WHERE join_date = ?"
+        cursor.execute(sql, (today,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
 
     def get_all_users(self):
-        self.cursor.execute("SELECT user_id FROM users")
-        return [row[0] for row in self.cursor.fetchall()]
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id FROM users")
+        users = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return users
 
-db = Database() # Baza bilan ishlash uchun obyekt
+db = Database()
