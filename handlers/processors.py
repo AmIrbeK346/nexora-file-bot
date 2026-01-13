@@ -36,7 +36,7 @@ async def finalize_merge(message: Message, state: FSMContext, bot: Bot, l10n: di
     out = Path(TEMP_DIR).resolve() / f"merged_{message.from_user.id}.pdf"
     try:
         await PDFService.merge_pdfs(files, str(out))
-        await message.answer_document(FSInputFile(str(out)), caption=l10n['done'], reply_markup=get_main_menu(lang))
+       await ask_rename_preference(message, state, str(out_file), l10n)
     except Exception as e: await message.answer(l10n['error_generic'].format(e=e))
     finally:
         if status_msg: await status_msg.delete()
@@ -196,7 +196,7 @@ async def do_zip(message: Message, state: FSMContext, lang: str, l10n: dict):
     try:
         with zipfile.ZipFile(str(out), 'w') as z:
             for f in files: z.write(f, Path(f).name)
-        await message.answer_document(FSInputFile(str(out)), caption=l10n['done'], reply_markup=get_main_menu(lang))
+       await ask_rename_preference(message, state, str(out_file), l10n)
     finally:
         if status: await status.delete()
         await state.clear()
@@ -322,7 +322,52 @@ async def process_pdf_unified(message: Message, state: FSMContext, bot: Bot, l10
                 except: pass
 
     
+@router.callback_query(F.data == "rename_no", Form.waiting_for_rename_choice)
+async def finalize_without_rename(callback: CallbackQuery, state: FSMContext, bot: Bot, l10n: dict, lang: str):
+    data = await state.get_data()
+    file_path = data.get('final_file_path')
     
+    # 2-RASMDAGI KABI "sending a file" holati:
+    await bot.send_chat_action(chat_id=callback.message.chat.id, action="upload_document")
+    
+    await callback.message.answer_document(
+        FSInputFile(file_path), 
+        caption=l10n['done'],
+        reply_markup=get_main_menu(lang)
+    )
+    await callback.message.delete() # Savolni o'chirish
+    await state.clear()
+    if os.path.exists(file_path): os.remove(file_path)
+
+# 2. "Ha" deb javob berilsa - nom so'raymiz
+@router.callback_query(F.data == "rename_yes", Form.waiting_for_rename_choice)
+async def ask_for_name(callback: CallbackQuery, state: FSMContext, l10n: dict):
+    await callback.message.answer(l10n['ask_new_name'])
+    await state.set_state(Form.waiting_for_new_file_name)
+    await callback.answer()
+
+# 3. Yangi nom yuborilganda - faylni o'sha nom bilan yuboramiz
+@router.message(Form.waiting_for_new_file_name)
+async def finalize_with_custom_name(message: Message, state: FSMContext, bot: Bot, l10n: dict, lang: str):
+    data = await state.get_data()
+    file_path = data.get('final_file_path')
+    new_name = message.text.strip()
+    
+    # Kengaytmani saqlab qolamiz (masalan .pdf)
+    ext = Path(file_path).suffix
+    full_new_name = f"{new_name}{ext}"
+    
+    # "sending a file" holati:
+    await bot.send_chat_action(chat_id=message.chat.id, action="upload_document")
+    
+    await message.answer_document(
+        FSInputFile(file_path, filename=full_new_name), 
+        caption=l10n['done'],
+        reply_markup=get_main_menu(lang)
+    )
+    await state.clear()
+    if os.path.exists(file_path): os.remove(file_path)
+
 @router.message(Form.waiting_for_watermark_text)
 async def get_watermark_text(message: Message, state: FSMContext, l10n: dict):
     # Matnni xotiraga saqlaymiz
