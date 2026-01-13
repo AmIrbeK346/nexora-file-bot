@@ -1,11 +1,9 @@
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, CallbackQuery
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from locales.messages import MESSAGES
-from middlewares.i18n import user_lang_db
-from aiogram.filters import Command
+from utils.db import db # O'rniga bazani import qiling
 from config import ADMIN_ID
-from utils.db import db
 
 router = Router()
 
@@ -44,8 +42,8 @@ async def cmd_start(message: Message):
 @router.callback_query(F.data.startswith("lang_"))
 async def set_lang(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
-    # Bazaga saqlash
-    db.set_language(callback.from_user.id, lang)
+    # Lug'at o'rniga bazaga saqlash:
+    db.set_language(callback.from_user.id, lang) 
     
     await callback.message.delete()
     await callback.message.answer(MESSAGES[lang]['main_menu'], reply_markup=get_main_menu(lang))
