@@ -69,4 +69,37 @@ class Database:
         conn.close()
         return users
 
+    def set_language(self, user_id, lang):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        # Avval foydalanuvchi borligini tekshiramiz (add_user funksiyasini ham chaqirib ketadi)
+        self.add_user(user_id)
+        
+        sql = "UPDATE users SET language = %s WHERE user_id = %s" if self.db_url else "UPDATE users SET language = ? WHERE user_id = ?"
+        cursor.execute(sql, (lang, user_id))
+        conn.commit()
+        conn.close()
+
+    def get_language(self, user_id):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        sql = "SELECT language FROM users WHERE user_id = %s" if self.db_url else "SELECT language FROM users WHERE user_id = ?"
+        cursor.execute(sql, (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row and row[0] else "uz" # Default uz
+        
+    def create_table(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        query = """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id BIGINT PRIMARY KEY,
+                join_date TEXT,
+                language TEXT DEFAULT 'uz'
+            )
+        """
+        cursor.execute(query)
+        conn.commit()
+        conn.close()
 db = Database()
