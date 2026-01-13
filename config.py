@@ -14,7 +14,10 @@ if os.name == 'nt':  # Windows uchun
 else:  # Linux (Railway/Server) uchun
     LIBREOFFICE_PATH = 'soffice'
     POPPLER_PATH = None  
-
+if os.name == 'nt': # Windows uchun (mahalliy test)
+    DB_PATH = "bot_database.db"
+else: # Linux (Railway) uchun doimiy yo'l
+    DB_PATH = "/data/bot_database.db"
 TEMP_DIR = "/tmp/telegram_file_bot" # Serverda /tmp papkasi xavfsizroq
 if not os.path.exists(TEMP_DIR):
     os.makedirs(TEMP_DIR)
