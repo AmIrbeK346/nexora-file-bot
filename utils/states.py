@@ -13,3 +13,5 @@ class Form(StatesGroup):
     waiting_for_watermark_text = State()
     waiting_for_number_pos = State()
     waiting_for_ad = State() # Reklama matnini kutish
+    waiting_for_rename_choice = State() # Ha yoki Yo'q tanlovi uchun
+    waiting_for_new_file_name = State() # Yangi nomni yozish uchun
