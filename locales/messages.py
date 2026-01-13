@@ -52,6 +52,10 @@ MESSAGES = {
         'error_not_image': "⚠️ Bu rasm emas! Iltimos, faqat rasm (JPG, PNG) yuboring.",
         'error_not_pdf': "⚠️ Bu PDF emas! Iltimos, faqat .pdf fayl yuboring.",
         'error_not_office': "⚠️ Bu Office hujjati emas! Iltimos, faqat .docx yoki .xlsx yuboring.",
+        'ask_rename': "Fayl nomini o'rnatasizmi?",
+        'ask_new_name': "Fayl uchun yangi nom kiriting (kengaytmasiz):",
+        'btn_ha': "Ha",
+        'btn_yoq': "Yo'q",
     },
     'ru': {
         'main_menu': "Главное меню. Выберите раздел:",
@@ -106,6 +110,10 @@ MESSAGES = {
         'error_not_image': "⚠️ Это не изображение! Пожалуйста, отправьте только фото (JPG, PNG).",
         'error_not_pdf': "⚠️ Это не PDF! Пожалуйста, отправьте только .pdf файл.",
         'error_not_office': "⚠️ Это не документ Office! Пожалуйста, отправьте только .docx или .xlsx.",
+        'ask_rename': "Вы хотите переименовать файл?",
+        'ask_new_name': "Введите новое имя файла (без расширения):",
+        'btn_ha': "Да",
+        'btn_yoq': "Нет",
     },
     'en': {
         'main_menu': "Main Menu. Select section:",
@@ -160,5 +168,9 @@ MESSAGES = {
         'error_not_image': "⚠️ This is not an image! Please send only photos (JPG, PNG).",
         'error_not_pdf': "⚠️ This is not a PDF! Please send only .pdf files.",
         'error_not_office': "⚠️ This is not an Office document! Please send only .docx or .xlsx.",
+        'ask_rename': "Do you want to rename the file?",
+        'ask_new_name': "Enter a new file name (without extension):",
+        'btn_ha': "Yes",
+        'btn_yoq': "No",
     }
 }
