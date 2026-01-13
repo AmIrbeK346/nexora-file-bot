@@ -9,3 +9,4 @@ pikepdf
 reportlab
 pdf2docx
 pycryptodome
+psycopg2-binary
