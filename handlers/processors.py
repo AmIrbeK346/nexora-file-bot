@@ -267,17 +267,33 @@ async def do_zip(message: Message, state: FSMContext, lang: str, l10n: dict):
     data = await state.get_data()
     files = data.get('zip_files', [])
     if not files: return await message.answer(l10n['error_order'])
+
     status = await message.answer(l10n['wait'], reply_markup=ReplyKeyboardRemove())
-    out = Path(TEMP_DIR).resolve() / f"arch_{message.from_user.id}_{int(time.time())}.zip"
+    out = str(Path(TEMP_DIR).resolve() / f"arch_{message.from_user.id}_{int(time.time())}.zip")
+    
     try:
-        with zipfile.ZipFile(str(out), 'w') as z:
-            for f in files: z.write(f, Path(f).name)
-        await status.delete()
-        await ask_rename_preference(message, state, str(out), l10n)
-    except Exception as e: await message.answer(f"❌ Xato: {e}")
+        with zipfile.ZipFile(out, 'w') as z:
+            added_names = [] # Qo'shilgan nomlarni kuzatib borish uchun
+            for i, f in enumerate(files):
+                if os.path.exists(f):
+                    original_name = Path(f).name
+                    # Agar nom takrorlansa, oldiga raqam qo'shish (Duplicate name fix)
+                    if original_name in added_names:
+                        save_name = f"{i}_{original_name}"
+                    else:
+                        save_name = original_name
+                    
+                    z.write(f, save_name)
+                    added_names.append(save_name)
+        
+        await ask_rename_preference(message, state, out, l10n)
+        
+    except Exception as e:
+        print(f"ZIP ERROR: {e}")
+        await message.answer(f"❌ Error: {e}")
+        if os.path.exists(out): os.remove(out)
     finally:
-        for f in files:
-            if os.path.exists(f): os.remove(f)
+        if status: await status.delete()
 
 @router.message(Form.waiting_for_page_params)
 async def get_page_params(message: Message, state: FSMContext, l10n: dict):
