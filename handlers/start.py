@@ -41,10 +41,11 @@ async def cmd_start(message: Message):
     await message.answer("Select language / Tilni tanlang / Выберите язык:", reply_markup=kb)
 
 
-    
 @router.callback_query(F.data.startswith("lang_"))
 async def set_lang(callback: CallbackQuery):
     lang = callback.data.split("_")[1]
-    user_lang_db[callback.from_user.id] = lang
+    # Bazaga saqlash
+    db.set_language(callback.from_user.id, lang)
+    
     await callback.message.delete()
     await callback.message.answer(MESSAGES[lang]['main_menu'], reply_markup=get_main_menu(lang))
