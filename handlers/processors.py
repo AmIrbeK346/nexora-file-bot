@@ -36,7 +36,7 @@ async def finalize_merge(message: Message, state: FSMContext, bot: Bot, l10n: di
     out = Path(TEMP_DIR).resolve() / f"merged_{message.from_user.id}.pdf"
     try:
         await PDFService.merge_pdfs(files, str(out))
-       await ask_rename_preference(message, state, str(out_file), l10n)
+        await ask_rename_preference(message, state, str(out_file), l10n)
     except Exception as e: await message.answer(l10n['error_generic'].format(e=e))
     finally:
         if status_msg: await status_msg.delete()
@@ -196,7 +196,7 @@ async def do_zip(message: Message, state: FSMContext, lang: str, l10n: dict):
     try:
         with zipfile.ZipFile(str(out), 'w') as z:
             for f in files: z.write(f, Path(f).name)
-       await ask_rename_preference(message, state, str(out_file), l10n)
+        await ask_rename_preference(message, state, str(out_file), l10n)
     finally:
         if status: await status.delete()
         await state.clear()
