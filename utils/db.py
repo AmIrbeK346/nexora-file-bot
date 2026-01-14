@@ -35,17 +35,19 @@ class Database:
     def add_user(self, user_id):
         conn = self.get_connection()
         cursor = conn.cursor()
-        # Postgres va SQLite uchun universal SQL
-        placeholder = "%s" if self.db_url else "?"
+        now = datetime.now().strftime("%Y-%m-%d")
         
-        cursor.execute(f"SELECT user_id FROM users WHERE user_id = {placeholder}", (user_id,))
-        if not cursor.fetchone():
-            now = datetime.now().strftime("%Y-%m-%d")
-            cursor.execute(
-                f"INSERT INTO users (user_id, join_date) VALUES ({placeholder}, {placeholder})",
-                (user_id, now)
-            )
-            conn.commit()
+        if self.db_url:
+            # PostgreSQL uchun "Agar bor bo'lsa, tegma" mantiqi (Juda tez ishlaydi)
+            query = "INSERT INTO users (user_id, join_date) VALUES (%s, %s) ON CONFLICT (user_id) DO NOTHING"
+            cursor.execute(query, (user_id, now))
+        else:
+            # SQLite uchun eski mantiq
+            cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
+            if not cursor.fetchone():
+                cursor.execute("INSERT INTO users (user_id, join_date) VALUES (?, ?)", (user_id, now))
+        
+        conn.commit()
         conn.close()
 
     def get_language(self, user_id):
