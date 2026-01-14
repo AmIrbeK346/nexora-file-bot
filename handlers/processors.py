@@ -39,18 +39,34 @@ async def finalize_without_rename(callback: CallbackQuery, state: FSMContext, bo
     data = await state.get_data()
     file_path = data.get('final_file_path')
     
-    if not file_path or not os.path.exists(file_path):
-        return await callback.message.answer(l10n['error_order'], reply_markup=get_main_menu(lang))
+    # 1. Habarni darhol o'chirib tashlaymiz
+    try:
+        await callback.message.delete()
+    except:
+        pass # Agar xabar allaqachon o'chirilgan bo'lsa xato bermasligi uchun
 
+    # 2. Fayl yuborish amali
     await bot.send_chat_action(chat_id=callback.message.chat.id, action="upload_document")
-    await callback.message.answer_document(FSInputFile(file_path), caption=l10n['done'], reply_markup=get_main_menu(lang))
     
-    await callback.message.delete()
+    await callback.message.answer_document(
+        FSInputFile(file_path), 
+        caption=l10n['done'],
+        reply_markup=get_main_menu(lang)
+    )
+    
     await state.clear()
-    if os.path.exists(file_path): os.remove(file_path)
+    if file_path and os.path.exists(file_path): os.remove(file_path)
+    await callback.answer()
 
 @router.callback_query(F.data == "rename_yes", Form.waiting_for_rename_choice)
 async def ask_for_name(callback: CallbackQuery, state: FSMContext, l10n: dict):
+    # 1. Savol xabarini o'chirib yuboramiz
+    try:
+        await callback.message.delete()
+    except:
+        pass
+
+    # 2. Yangi nom so'raymiz
     await callback.message.answer(l10n['ask_new_name'])
     await state.set_state(Form.waiting_for_new_file_name)
     await callback.answer()
