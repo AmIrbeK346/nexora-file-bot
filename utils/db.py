@@ -10,11 +10,15 @@ class Database:
         self.create_table()
 
     def get_connection(self):
-        # AGAR DATABASE_URL bo'lsa (Serverda), Postgresga ulanadi
-        # AGAR bo'lmasa (Kompyuterda), SQLite ishlatadi
-        if self.db_url:
-            return psycopg2.connect(self.db_url, sslmode='require')
-        else:
+        try:
+            if self.db_url:
+                # DATABASE_URL orqali ulanish
+                return psycopg2.connect(self.db_url)
+            else:
+                return sqlite3.connect("bot_database.db")
+        except Exception as e:
+            print(f"BAZA BILAN ULANIISHDA XATO: {e}")
+            # Agar Postgres ulanmasa, vaqtincha SQLite ishlatib turishi uchun:
             return sqlite3.connect("bot_database.db")
 
     def create_table(self):
