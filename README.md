@@ -9,4 +9,4 @@ Telegram orqali PDF va arxivlar bilan ishlovchi professional bot.
 - Watermark va Sahifalarni raqamlash
 - Admin Panel va Statistika
 
-## Dasturch Samandar Abdurahmonov
+## Dasturchi Samandar Abdurahmonov
