@@ -93,8 +93,16 @@ async def finalize_with_custom_name(message: Message, state: FSMContext, bot: Bo
 # 3. ASOSIY PDF PROCESSOR (Barcha amallar)
 # ==========================================
 
+# --- PDF KUTILAYOTGANDA NOTO'G'RI FORMAT KELSA (RASM YOKI MATN) ---
+@router.message(Form.waiting_for_pdf, ~F.document)
+async def error_not_pdf_handler(message: Message, l10n: dict):
+    # Foydalanuvchi PDF o'rniga rasm (F.photo) yoki matn yuborsa ishlaydi
+    await message.answer(l10n['error_not_pdf'])
+
+# --- ASOSIY PDF PROCESSOR (KUCHAYTIRILGAN VARIANT) ---
 @router.message(Form.waiting_for_pdf, F.document)
 async def process_pdf_unified(message: Message, state: FSMContext, bot: Bot, l10n: dict, lang: str):
+    # 1. Fayl PDF ekanligini qat'iy tekshirish
     if not message.document.file_name.lower().endswith('.pdf'):
         return await message.answer(l10n['error_not_pdf'])
     
@@ -103,6 +111,7 @@ async def process_pdf_unified(message: Message, state: FSMContext, bot: Bot, l10
     params = data.get('page_input', "")
     
     status_msg = await message.answer(l10n['processing'])
+    
     temp_path = Path(TEMP_DIR).resolve()
     uid = f"{message.from_user.id}_{int(time.time())}"
     in_p = temp_path / f"in_{uid}.pdf"
@@ -111,15 +120,36 @@ async def process_pdf_unified(message: Message, state: FSMContext, bot: Bot, l10
     try:
         await bot.download_file((await bot.get_file(message.document.file_id)).file_path, str(in_p))
 
-        # --- A. ORGANIZE ---
-        if tool == "split":
+        # --- MANTIQIY BO'LIMLAR ---
+        caption = l10n.get('done', "✅ Tayyor!")
+
+        if tool == "pdf_to_doc":
+            out_doc = in_p.with_suffix(".docx")
+            await asyncio.to_thread(PDFService.pdf_to_docx_sync, in_p, out_doc)
+            out_p = out_doc
+
+        elif tool == "pdf_to_jpg":
+            img_paths = await asyncio.to_thread(PDFService.pdf_to_images_sync, in_p, temp_path)
+            await asyncio.sleep(1)
+            if img_paths:
+                if status_msg: await status_msg.delete() # Processingni o'chiramiz
+                for img in img_paths:
+                    if Path(img).exists():
+                        await message.answer_photo(FSInputFile(img))
+                        os.remove(img)
+                await state.clear()
+                if in_p.exists(): os.remove(str(in_p))
+                return await message.answer(l10n['pages_sent'], reply_markup=get_main_menu(lang))
+            else:
+                raise Exception("Rasmlar yaratilmadi.")
+
+        # Organize, Security va Edit mantiqlari (Sizda bor bo'lgan elif-lar)
+        elif tool == "split":
             n = re.findall(r'\d+', params)
             await PDFService.split_pdf(str(in_p), str(out_p), int(n[0]), int(n[1]))
         elif tool in ["extract", "remove"]:
             pages = [int(p)-1 for p in re.findall(r'\d+', params)]
             await PDFService.process_pages(str(in_p), str(out_p), pages, tool)
-        
-        # --- B. SECURITY & EDIT ---
         elif tool == "protect":
             await PDFService.protect_pdf(str(in_p), str(out_p), data.get('pdf_password'))
         elif tool == "unlock":
@@ -130,39 +160,26 @@ async def process_pdf_unified(message: Message, state: FSMContext, bot: Bot, l10
             await PDFService.add_page_numbers(str(in_p), str(out_p), data.get('number_pos', 'center'))
         elif tool == "watermark":
             await PDFService.add_watermark(str(in_p), str(out_p), data.get('watermark_text', "Nexora"))
-        
-        # --- C. CONVERT FROM PDF ---
-        elif tool == "pdf_to_doc":
-            out_doc = out_p.with_suffix(".docx")
-            await asyncio.to_thread(PDFService.pdf_to_docx_sync, str(in_p), str(out_doc))
-            out_p = out_doc
-        elif tool == "pdf_to_jpg":
-            img_paths = await asyncio.to_thread(PDFService.pdf_to_images_sync, str(in_p), str(temp_path))
-            await status_msg.delete()
-            for img in img_paths: await message.answer_photo(FSInputFile(img))
-            await state.clear(); os.remove(str(in_p))
-            return await message.answer(l10n['pages_sent'], reply_markup=get_main_menu(lang))
 
-        # Windows Ready Check
-        found = False
+        # --- YAKUNIY TEKSHIRUV VA YUBORISH ---
         for _ in range(15):
-            if out_p.exists() and out_p.stat().st_size > 100:
-                found = True; break
+            if out_p.exists() and out_p.stat().st_size > 100: break
             await asyncio.sleep(0.5)
 
-        if found:
-            await status_msg.delete()
+        if out_p.exists():
+            if status_msg: await status_msg.delete()
+            # "Nom qo'yasizmi?" savoliga yuboramiz
             await ask_rename_preference(message, state, str(out_p), l10n)
         else:
-            raise Exception("Natija fayli yaratilmadi.")
+            raise Exception("Natija yaratilmadi.")
 
     except Exception as e:
-        await message.answer(l10n['error_generic'].format(e=e), reply_markup=get_main_menu(lang))
+        print(f"ERROR: {e}")
         if status_msg: await status_msg.delete()
+        await message.answer(l10n['error_generic'].format(e=e), reply_markup=get_main_menu(lang))
         await state.clear()
     finally:
         if in_p.exists(): os.remove(str(in_p))
-
 # ==========================================
 # 4. MERGE, OFFICE VA JPG HANDLERLARI
 # ==========================================
