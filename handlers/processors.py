@@ -246,12 +246,31 @@ async def process_office_to_pdf(message: Message, state: FSMContext, bot: Bot, l
 async def collect_jpgs(message: Message, state: FSMContext, bot: Bot, l10n: dict):
     data = await state.get_data()
     files = data.get('jpg_files', [])
-    f_id = message.photo[-1].file_id if message.photo else message.document.file_id
-    ext = ".jpg" if message.photo else Path(message.document.file_name).suffix
-    p = Path(TEMP_DIR).resolve() / f"j_{message.from_user.id}_{len(files)}{ext}"
-    await bot.download_file((await bot.get_file(f_id)).file_path, str(p))
-    files.append(str(p))
+    
+    # 1. Rasm va uning unikal ID sini aniqlash
+    if message.photo:
+        f_id = message.photo[-1].file_id
+        f_unique = message.photo[-1].file_unique_id # TAKRORLANMAS ID
+        ext = ".jpg"
+    elif message.document and message.document.mime_type.startswith('image/'):
+        f_id = message.document.file_id
+        f_unique = message.document.file_unique_id # TAKRORLANMAS ID
+        ext = Path(message.document.file_name).suffix
+    else:
+        return await message.answer(l10n['error_not_image'])
+
+    # 2. Fayl nomi endi len(files) ga emas, f_unique ga bog'liq
+    temp_path = Path(TEMP_DIR).resolve()
+    path = temp_path / f"img_{message.from_user.id}_{f_unique}{ext}"
+    
+    # Agar rasm allaqachon yuklangan bo'lsa (duplicate protection)
+    if str(path) in files:
+        return
+
+    await bot.download_file((await bot.get_file(f_id)).file_path, str(path))
+    files.append(str(path))
     await state.update_data(jpg_files=files)
+    
     kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=l10n['btn_ready'])]], resize_keyboard=True)
     await message.answer(l10n['images_added'].format(count=len(files)), reply_markup=kb)
 
@@ -282,18 +301,46 @@ async def finalize_jpg(message: Message, state: FSMContext, lang: str, l10n: dic
 # 5. QOLGAN PARAMETR HANDLERLARI
 # ==========================================
 
+# ZIP uchun:
 @router.message(Form.waiting_for_zip_files, F.document | F.photo)
 async def collect_zip(message: Message, state: FSMContext, bot: Bot, l10n: dict):
     data = await state.get_data()
     files = data.get('zip_files', [])
-    f_id = message.document.file_id if message.document else message.photo[-1].file_id
-    f_name = message.document.file_name if message.document else f"p_{len(files)}.jpg"
-    p = Path(TEMP_DIR).resolve() / f"z_{message.from_user.id}_{f_name}"
-    await bot.download_file((await bot.get_file(f_id)).file_path, str(p))
-    files.append(str(p))
-    await state.update_data(zip_files=files)
+    
+    f_obj = message.document if message.document else message.photo[-1]
+    f_id = f_obj.file_id
+    f_unique = f_obj.file_unique_id # UNIKAL ID
+    f_name = message.document.file_name if message.document else f"photo_{f_unique}.jpg"
+    
+    p = Path(TEMP_DIR).resolve() / f"z_{message.from_user.id}_{f_unique}_{f_name}"
+    
+    if str(p) not in files:
+        await bot.download_file((await bot.get_file(f_id)).file_path, str(p))
+        files.append(str(p))
+        await state.update_data(zip_files=files)
+    
     kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=l10n['btn_ready'])]], resize_keyboard=True)
     await message.answer(l10n['files_added'].format(count=len(files)), reply_markup=kb)
+
+# Merge PDF uchun:
+@router.message(Form.waiting_for_merge_files, F.document)
+async def collect_merge(message: Message, state: FSMContext, bot: Bot, l10n: dict):
+    if not message.document.file_name.lower().endswith('.pdf'):
+        return await message.answer(l10n['error_not_pdf'])
+        
+    data = await state.get_data()
+    files = data.get('merge_files', [])
+    
+    f_unique = message.document.file_unique_id
+    path = Path(TEMP_DIR).resolve() / f"m_{message.from_user.id}_{f_unique}.pdf"
+    
+    if str(path) not in files:
+        await bot.download_file((await bot.get_file(message.document.file_id)).file_path, str(path))
+        files.append(str(path))
+        await state.update_data(merge_files=files)
+    
+    kb = ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text=l10n['btn_ready'])]], resize_keyboard=True)
+    await message.answer(l10n['file_added'].format(count=len(files)), reply_markup=kb)
 
 @router.message(Form.waiting_for_zip_files, F.text, lambda m: any(word in m.text for word in ["Tayyor", "Done", "Готово"]))
 async def do_zip(message: Message, state: FSMContext, lang: str, l10n: dict):
