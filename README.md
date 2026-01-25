@@ -1,7 +1,7 @@
-# FileForge Bot 🚀
+FileForge Bot 🚀
 Telegram orqali PDF va arxivlar bilan ishlovchi professional bot!
 
-## Imkoniyatlar:
+ Imkoniyatlar:
 - PDF Merge, Split, Extract, Remove
 - Word/Excel to PDF
 - PDF to Word/JPG
