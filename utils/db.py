@@ -11,26 +11,26 @@ except ImportError:
 
 class Database:
     def __init__(self):
-        # Railway-dagi Public URL
-        self.db_url = os.getenv("DATABASE_URL")
+        # Standart DATABASE_URL o'rniga o'zimiz yaratgan PG_URL ga qaraymiz
+        self.db_url = os.getenv("PG_URL")
+        
         if self.db_url:
-            logging.info("--- SERVER: PostgreSQL bazasiga ulanishga urinish ---")
+            logging.info("--- SERVER: PG_URL orqali ulanishga urinish ---")
         else:
-            logging.warning("--- LOCAL: DATABASE_URL topilmadi, SQLite ishlatiladi ---")
+            logging.warning("--- LOCAL: PG_URL topilmadi, SQLite ishlatiladi ---")
+            
         self.create_table()
 
     def get_connection(self):
-        # Agar serverda bo'lsak, faqat Postgresga ulanamiz
+        # Agar PG_URL bo'lsa, faqat o'shandan foydalanadi
         if self.db_url and psycopg2:
             try:
-                # 'sslmode=require' Railway uchun shart
-                return psycopg2.connect(self.db_url, sslmode='require')
+                # Public URL uchun sslmode ko'pincha linkni o'zida bo'ladi
+                return psycopg2.connect(self.db_url)
             except Exception as e:
-                logging.error(f"!!! POSTGRES BILAN ULANIISHDA XATO: {e}")
-                # Agar Postgres ishlamasa, dastur to'xtamasligi uchun SQLite-ga qaytamiz
+                logging.error(f"!!! POSTGRES XATOSI: {e}")
                 return sqlite3.connect("bot_database.db")
         
-        # Mahalliy kompyuterda test qilish uchun
         return sqlite3.connect("bot_database.db")
 
     def create_table(self):
